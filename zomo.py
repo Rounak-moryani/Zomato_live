@@ -1,15 +1,46 @@
 import streamlit as st
 import pandas as pd
-import seaborn as sb
-import matplotlib.pyplot as plt
+import plotly.express as px
 
 # -----------------------------
 # Page Config
 # -----------------------------
-st.set_page_config(page_title="Zomato Restaurant Explorer", layout="wide")
+st.set_page_config(
+    page_title="Zomato Restaurant Explorer",
+    layout="wide",
+    page_icon="🍽️"
+)
 
-st.title("🍽️ Zomato Restaurant Analysis")
-st.write("Explore top-rated restaurants in each location.")
+# -----------------------------
+# Custom Dark Theme CSS
+# -----------------------------
+st.markdown("""
+    <style>
+        body, .stApp {
+            background-color: #0e1117 !important;
+            color: #fafafa !important;
+        }
+        .css-1d391kg, .css-q8sbsg {
+            background-color: #161a22 !important;
+        }
+        .stSelectbox div div {
+            color: #ffffff !important;
+        }
+        .block-container {
+            padding-top: 20px;
+        }
+        h1, .stMarkdown, .stWrite, .stSubheader {
+            color: #ffffff !important;
+        }
+        .stDataFrame {
+            background-color: #1b1e27 !important;
+        }
+    </style>
+""", unsafe_allow_html=True)
+
+# Title
+st.markdown("<h1 style='text-align:center;'>🍽️ Zomato Restaurant Analysis</h1>", unsafe_allow_html=True)
+st.write("Explore top-rated restaurants in your favorite location with cost comparison and interactive insights.")
 
 # -----------------------------
 # Load Data
@@ -26,18 +57,16 @@ df = load_data()
 # Location Selector
 # -----------------------------
 locations = sorted(df.location.dropna().unique())
+selected_location = st.selectbox("📍 Select Location:", locations)
 
-selected_location = st.selectbox("Select a location:", locations)
-
-# Filter data by selected location
+# Filter dataset
 lo = df[df["location"] == selected_location]
 
 if lo.empty:
-    st.warning("No restaurants found for this location.")
+    st.warning("⚠️ No restaurants found for this location.")
 else:
-    # -----------------------------
-    # Compute Top Restaurants
-    # -----------------------------
+    st.subheader(f"⭐ Top 10 Restaurants by Rating in **{selected_location}**")
+
     d = (
         lo.groupby("name")[["approx_cost", "rate"]]
         .mean()
@@ -45,30 +74,42 @@ else:
         .reset_index()
     )
 
-    st.subheader(f"⭐ Top 10 Restaurants by Rating in {selected_location}")
+    col1, col2 = st.columns(2)
 
     # -----------------------------
-    # Plot 1 – Cost
+    # Cost Comparison Chart
     # -----------------------------
-    st.write("### 💰 Approx Cost Comparison")
-
-    fig1 = plt.figure(figsize=(16, 6))
-    sb.barplot(x=d.name, y=d.approx_cost, palette="winter")
-    plt.xticks(rotation=45, ha="right")
-    plt.tight_layout()
-    st.pyplot(fig1)
+    with col1:
+        st.write("### 💰 Average Cost")
+        fig_cost = px.bar(
+            d, x="name", y="approx_cost",
+            template="plotly_dark",
+            title="Cost Comparison",
+            hover_name="name"
+        )
+        fig_cost.update_layout(xaxis_tickangle=35, height=450)
+        st.plotly_chart(fig_cost, use_container_width=True)
 
     # -----------------------------
-    # Plot 2 – Ratings
+    # Ratings Chart
     # -----------------------------
-    st.write("### ⭐ Average Rating Comparison")
+    with col2:
+        st.write("### ⭐ Average Rating")
+        fig_rate = px.bar(
+            d, x="name", y="rate",
+            template="plotly_dark",
+            title="Rating Comparison",
+            hover_name="name",
+            color="rate",
+            color_continuous_scale="reds"
+        )
+        fig_rate.update_layout(xaxis_tickangle=35, height=450)
+        st.plotly_chart(fig_rate, use_container_width=True)
 
-    fig2 = plt.figure(figsize=(16, 6))
-    sb.barplot(x=d.name, y=d.rate, palette="hot")
-    plt.xticks(rotation=45, ha="right")
-    plt.tight_layout()
-    st.pyplot(fig2)
+    # Show data table
+    st.write("### 📋 Top Restaurants Data")
+    st.dataframe(d.style.highlight_max(subset=["rate"], color="green"))
 
-    # Show table
-    st.write("### 📋 Top 10 Restaurants Data")
-    st.dataframe(d)
+
+# Footer
+st.markdown("<p style='text-align:center; color:gray;'>Made with ❤️ using Streamlit</p>", unsafe_allow_html=True)
